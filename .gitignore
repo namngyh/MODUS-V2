@@ -1,0 +1,17 @@
+# Du lieu: khong commit (CLAUDE.md)
+data/
+ohlc_export.csv
+
+# Thong tin ket noi DB
+.env
+.env.*
+
+# Python / pytest
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Ket qua thi nghiem, checkpoint
+experiments/
+*.ckpt
+*.pt

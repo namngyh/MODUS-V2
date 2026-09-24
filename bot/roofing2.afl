@@ -1,0 +1,250 @@
+_SECTION_BEGIN("Roofing_5M_Q1-21");
+//
+//	CORE MOI: Ehlers Roofing Filter = High-Pass + Super Smoother
+//	Thay cho goc KF (STORSI) cu -> it nhieu hon, chiu bien dong tot hon.
+//	Logic tin hieu giu nguyen: Buy0 = Cross(f0,s0); Short0 = Cross(s0,f0)
+//
+//	Trailing Close: gia dong lenh la Close cua nen sau khi co tin hieu.
+//
+
+
+SetChartOptions(0,chartShowArrows|chartShowDates);
+chartType = ParamToggle("Show Kieu Chart: ","Oscillator,Gia & Trailing",0);
+
+
+/////////////////// Optimize Setting //////////////////////
+OptimizerSetEngine("cmae");//	Optimize Ngau nhien
+SetOption("ExtraColumnsLocation", 1);
+SetPositionSize(1,spsShares); //	Chi trade 1 hop dong duy nhat
+SetOption( "InitialEquity", 2000);// Von ban dau 2000
+
+//>>> SUA: MUC TIEU TOI UU ROBUST (thay cho Net Profit) -------------------
+//   Sau khi chay, vao Analysis > Settings > Optimization target = "RobustTarget".
+SetCustomBacktestProc("");
+if( Status("action") == actionPortfolio )
+{
+    bo = GetBacktesterObject();
+    bo.Backtest();                          // chay backtest mac dinh
+    st = bo.GetPerformanceStats(0);
+
+    carmdd = st.GetValue("CAR/MDD");        // loi nhuan da dieu chinh rui ro
+
+    trades = 0;                             // dem so lenh
+    for( trade = bo.GetFirstTrade(); trade; trade = bo.GetNextTrade() )
+    {
+        trades = trades + 1;                // AFL khong co "++", phai viet day du
+    }
+
+    MinTrades = 300;                        // san so lenh toi thieu (truoc dat ten FLOOR -> trung ham floor())
+    score = carmdd;
+    if( trades < MinTrades )
+    {
+        score = carmdd * trades / MinTrades;   // phat neu qua it lenh
+    }
+
+    bo.AddCustomMetric("RobustTarget", score);
+}
+//-------------------------------------------------------------------------
+
+/////////////////// Optimize Params ///////////////////////
+//>>> SUA: KHUNG OPTIMIZE 2 TANG CHONG OVERFIT
+//   STAGE = 1 : toi uu 4 nut LOI (EMA, HP, SS, Sig). Momentum tat.
+//   STAGE = 2 : khoa 4 nut LOI, chi toi uu 3 nut MOMENTUM.
+
+STAGE = 0;   // <-- DOI TAY: 1 hoac 2
+
+// Gia tri LOI da chot sau khi xem plateau Stage 1 (dien lai TRUOC khi chay Stage 2)
+LengthFix = 240;  HPfix = 120;  SSfix = 22;  SigFix = 10;
+
+if( STAGE == 1 )
+{
+    // 4 nut LOI: luoi THO, range RONG -> optimum phai nam BEN TRONG (khong cham mep)
+    Length   = Optimize("EMA Len",   360, 180, 350, 10);  // truoc: step1 = 201 gia tri, qua min
+    HPperiod = Optimize("HP_Cutoff", 260,  100, 320, 20);  // MO RONG mep tren (truoc rail @160)
+    SSperiod = Optimize("SS_Smooth",  46,  24,  50,  2);
+    SigLen   = Optimize("Signal_Len", 78,   16,  48,  3);
+
+    // Momentum TAT hoan toan o Stage 1 de giam bac tu do
+    MomLen = 45;  MomNorm = 160;  MomThr = 0.72;          // MomThr=-100 -> dieu kien luc luon dung = tat loc
+}
+else
+{
+    // Khoa LOI -> chi do Momentum nhu mot lop loc bo sung
+    Length = LengthFix;  HPperiod = HPfix;  SSperiod = SSfix;  SigLen = SigFix;
+    MomLen  = Optimize("Mom_Len",   45, 10, 50, 5);   // MO RONG mep tren (truoc rail @20)
+    MomNorm = Optimize("Mom_Norm", 160, 60,180,40);   // it nhay -> luoi tho
+    MomThr  = Optimize("Mom_Thr",  0.72	,  0,0.8,0.12); // it nhay -> thu hep
+}
+
+PI = 3.14159265358979;
+
+//========================= ROOFING FILTER =========================
+// 1) HIGH-PASS: bo thanh phan xu huong cham -> con lai dao dong quanh 0
+alpha1 = ( Cos(0.707*2*PI/HPperiod) + Sin(0.707*2*PI/HPperiod) - 1 ) / Cos(0.707*2*PI/HPperiod);
+
+HP = 0;
+for( i = 2; i < BarCount; i++ )
+{
+	HP[i] = (1 - alpha1/2)^2 * ( C[i] - 2*C[i-1] + C[i-2] )
+		+ 2*(1 - alpha1) * HP[i-1]
+		- (1 - alpha1)^2 * HP[i-2];
+}
+
+// 2) SUPER SMOOTHER: loc nhieu tan so cao (Butterworth 2-pole, do tre thap)
+a1 = exp( -1.414*PI / SSperiod );
+b1 = 2*a1*Cos( 1.414*PI / SSperiod );	// goc tinh bang radian: 1.414*180deg = 1.414*PI rad
+c2 = b1;
+c3 = -a1*a1;
+c1 = 1 - c2 - c3;
+
+Filt = 0;
+for( i = 2; i < BarCount; i++ )
+{
+	Filt[i] = c1*( HP[i] + HP[i-1] )/2 + c2*Filt[i-1] + c3*Filt[i-2];
+}
+
+//	f0 / s0 thay cho STORSI / STORSIma
+f0 = Filt;
+s0 = WMA( Filt, SigLen );		// duong tin hieu muot
+
+//	MOMENTUM THRUST: do "luc" cua Filt, chuan hoa ve z-score (khong phu thuoc gia)
+Mom  = Filt - Ref( Filt, -MomLen );
+MomZ = Mom / ( StDev( Mom, MomNorm ) + 0.000001 );
+
+//==================================================================
+
+
+//	Dieu Kien Mua, Ban (giu nguyen logic cu)
+Buy0 	= Cross(f0,s0);
+Short0 	= Cross(s0,f0);
+openBuy = Flip(Buy0,Short0);
+openShort = Flip(Short0,Buy0);
+
+
+emafilter = Ref(eTrend=EMA(Close,length),-1);
+
+Buy 	= openBuy AND C>emafilter AND MomZ > MomThr;
+Sell 	= Short0;
+Short	= openShort AND C<emafilter AND MomZ < -MomThr;
+Cover 	= Buy0;
+
+//	Giam trung lap tin hieu
+Buy 	= ExRem( Buy, Sell );
+Sell 	= ExRem( Sell, Buy );
+Short 	= ExRem( Short, Cover );
+Cover 	= ExRem( Cover, Short );
+
+BuyPrice 	= ValueWhen(Buy,Close);
+ShortPrice 	= ValueWhen(Short,Close);
+SellPrice 	= ValueWhen(Sell,Close);
+CoverPrice 	= ValueWhen(Cover,Close);
+
+
+_N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Close %g (%.1f%%), Histogram: %.2f \n{{VALUES}}", O, H, L, C, SelectedValue( ROC( C, 1 )),f0-s0)
+);
+
+if(chartType==0) 	//Show chart Roofing Oscillator
+{
+	Plot( f0, StrFormat(_SECTION_NAME()+"(%g,%g,%g)", HPperiod, SSperiod, SigLen), colorRed, styleLine );
+	Plot( s0, "Signal" + _PARAM_VALUES(), colorBlue, styleLine );
+	Plot( 0, "Zero", colorGrey50, styleLine | styleNoLabel );
+
+
+	//	Signal for Buy Short & Close order
+	PlotShapes(IIf(Buy, shapeUpArrow, shapeNone), colorBrightGreen, 0, f0, -15, 0);
+	PlotShapes(IIf(Sell, shapeStar, shapeNone), colorRed, 0, f0, -15, 0);
+
+	PlotShapes(IIf(Short, shapeDownArrow, shapeNone), colorOrange, 0, f0, -35, 0);
+	PlotShapes(IIf(Cover, shapeStar, shapeNone), colorTurquoise, 0, f0, -30, 0);
+
+	// Print out Entry
+	for( i = 0; i < BarCount; i++ )
+	{
+		entryoffset = 60;
+		closeEntryOffset = 98;
+		if(Buy[i]){
+			PlotText( "B "
+			+BuyPrice[ i ]
+			, i, f0[i], colorGreen,colorDefault,-entryoffset);
+		}
+
+		if(Short[i]){
+			PlotText("S "
+			+ ShortPrice[ i ]
+			, i, f0[i], colorBrown,colorDefault, entryoffset);
+		}
+
+		if(Sell[i]){
+			PlotText("Dong B: "
+			+ SellPrice[ i ]
+			+ " / " + NumToStr(SellPrice[i]-BuyPrice[i],1.1)
+			, i, f0[i], colorGrey40,colorDefault, closeEntryOffset);
+		}
+
+		if(Cover[i]){
+			PlotText( "Dong S: "
+			+ CoverPrice[ i ]
+			+ " / " + NumToStr(Shortprice[i]-CoverPrice[i],1.1)
+			, i, f0[i], colorGrey40,colorDefault,-closeEntryOffset);
+		}
+	}
+
+}
+
+if(chartType==1)	//Show chart Gia & Trailing
+{
+	//	Gia
+	Plot( C, StrFormat(_SECTION_NAME()+"(%g,%g,%g)", HPperiod, SSperiod, SigLen), ParamColor("Color", colorDefault ), ParamStyle("Style") | GetPriceStyle() );
+
+	PlotShapes(IIf(Buy0, shapeHollowUpTriangle, shapeNone), colorGreen, 0, Low, -45, 0);
+	PlotShapes(IIf(Short0, shapeHollowDownTriangle, shapeNone), colorOrange, 0, High, -55, 0);
+
+	//	Signal for Buy Short & Close order
+	PlotShapes(IIf(Buy, shapeUpArrow, shapeNone), colorBrightGreen, 0, Low, -15, 0);
+	PlotShapes(IIf(Sell, shapeStar, shapeNone), colorRed, 0, High, -15, 0);
+
+	PlotShapes(IIf(Short, shapeDownArrow, shapeNone), colorOrange, 0, High, -35, 0);
+	PlotShapes(IIf(Cover, shapeStar, shapeNone), colorTurquoise, 0, Low, -30, 0);
+
+
+	// Print out Entry
+	for( i = 0; i < BarCount; i++ )
+	{
+		entryoffset = 60;
+		closeEntryOffset = 98;
+		if(Buy[i]){
+			PlotText( "B "
+			+BuyPrice[ i ]
+			, i, Low[i], colorGreen,colorDefault,-entryoffset);
+		}
+
+		if(Short[i]){
+			PlotText("S "
+			+ ShortPrice[ i ]
+			, i, High[i], colorBrown,colorDefault, entryoffset);
+		}
+
+		if(Sell[i]){
+			PlotText("Dong B: "
+			+ SellPrice[ i ]
+			+ " / " + NumToStr(SellPrice[i]-BuyPrice[i],1.1)
+			, i, High[i], colorGrey40,colorDefault, closeEntryOffset);
+		}
+
+		if(Cover[i]){
+			PlotText( "Dong S: "
+			+ CoverPrice[ i ]
+			+ " / " + NumToStr(Shortprice[i]-CoverPrice[i],1.1)
+			, i, Low[i], colorGrey40,colorDefault,-closeEntryOffset);
+		}
+	}
+
+
+	//	EMA
+	Plot(eTrend, "EMA", colorCustom12, styleLine, Null, Null, 0, 1, 1);
+}
+
+
+
+
+_SECTION_END();
