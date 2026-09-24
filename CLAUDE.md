@@ -50,6 +50,7 @@ phát hiện được khi nó bị phá.
 | 16 | Mất cân bằng mua-bán cùng dấu với return trong bar (và trên dữ liệu DB: giá TB bên mua > bên bán) — kiểm chứng kinh tế bắt việc đổi nhãn BUY/SELL | `test_order_flow_imbalance_moves_with_price`, `test_db_buy_side_pays_more_than_sell_side` |
 | 17 | Tổng thưởng từng bar của một lệnh = đúng lãi lỗ thực hiện của lệnh đó (tính bằng bội số ATR) | `test_reward_telescopes_to_realised_pnl` |
 | 18 | Mọi ranh giới episode/rollout đều bootstrap `V` của trạng thái **tiếp diễn thật**, không bao giờ gán tương lai = 0 và không bao giờ lấy trạng thái sau khi reset | `test_boundary_bootstraps_instead_of_zeroing_future`, `test_collect_bootstraps_from_the_pre_reset_state` |
+| 19 | Cột không khai `regime` không trôi ≥ 1σ giữa các năm đủ của train — chế độ thị trường chỉ vào X qua cột đã khai (spec 006) | `test_non_regime_features_do_not_drift_across_years` |
 
 Thêm bất biến mới thì thêm cả dòng trong bảng này lẫn bài test, trong cùng một thay đổi.
 

@@ -52,6 +52,12 @@ class FeatureConfig:
     mid_horizons: tuple[int, ...] = (120, SESSION_MINUTES)                # 2 gio, 1 phien
     slow_horizons: tuple[int, ...] = (2 * SESSION_MINUTES, 5 * SESSION_MINUTES)
 
+    # --- lop tinh dung (spec 006) ---
+    stationarize: bool = True            # tat de tai lap X truoc spec 006
+    rolling_horizon: int = 5 * SESSION_MINUTES   # cua so z-score cuon: 1 tuan, tinh bang phut
+    pit_dof: float = 5.0                 # bac tu do Student-t khi ep duoi
+    log_floor: float = 1e-5              # san truoc khi log muc bien dong
+
     # --- chuan hoa ---
     clip_sigma: float = 8.0              # cat duoi ngoai lai sau khi scale (don vi sigma)
     scaler: str = "robust"               # "robust" | "standard" | "none"
@@ -93,6 +99,10 @@ class FeatureConfig:
     @property
     def session_bars(self) -> int:
         return SESSION_MINUTES // self.bar_minutes
+
+    @property
+    def rolling_window(self) -> int:
+        return self.rolling_horizon // self.bar_minutes
 
     @property
     def embargo_bars(self) -> int:

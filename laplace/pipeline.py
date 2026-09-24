@@ -16,6 +16,7 @@ from .norms import make_context
 from .orderflow import build_orderflow
 from .scaling import FeatureScaler, TimeSplit, make_split, prune_columns
 from .session import build_session
+from .stationarity import stationarize
 
 # Anh xa co giao tu nhom nguoi dung yeu cau sang builder tuong ung.
 TALIB_GROUPS = {
@@ -99,6 +100,10 @@ def build_raw_features(df: pd.DataFrame, cfg: FeatureConfig,
         blocks["session"] = build_session(df, cfg)
     if cfg.use_bots:
         blocks["bot"] = build_bot_features(df, cfg, runs or run_bots(df))
+    if cfg.stationarize:
+        # Dat o day chu khong o build_feature_frame de bai kiem tra nhan qua (bat bien
+        # #2), von goi ham nay, phu luon buoc bien doi theo lop.
+        blocks = {g: stationarize(b, cfg) for g, b in blocks.items()}
     return blocks
 
 

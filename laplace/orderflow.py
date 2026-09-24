@@ -23,18 +23,12 @@ def build_orderflow(df: pd.DataFrame, cfg: FeatureConfig) -> pd.DataFrame:
     active = bv + sv
     out["ofi"] = safe_div(bv - sv, active)                      # -1..1
     out["ofi_val"] = safe_div(bval - sval, bval + sval)
-    # Ty le lenh chu dong tren tong khoi luong khop: do "quyet liet" cua bar.
-    out["participation"] = safe_div(active, df["volume"].to_numpy())
-
-    # Gia trung binh cua ben mua/ban so voi gia dong cua: ben nao dang tra gia hon.
-    avg_buy = safe_div(bval, bv, np.nan)
-    avg_sell = safe_div(sval, sv, np.nan)
-    out["buy_px_edge"] = log_ratio(avg_buy, close)
-    out["sell_px_edge"] = log_ratio(avg_sell, close)
-    out["px_spread"] = out["buy_px_edge"] - out["sell_px_edge"]
-    out[["buy_px_edge", "sell_px_edge", "px_spread"]] = (
-        out[["buy_px_edge", "sell_px_edge", "px_spread"]].fillna(0.0)
-    )
+    # Da bo (spec 006) - ca bon la san pham phu cua nha cung cap, khong phai thi truong:
+    #   participation = (mua + ban) / tong: bang 1 suot 2017-2022, tu 2023 chi phan anh
+    #     viec 3,5 % khoi luong khong con duoc phan loai.
+    #   buy_px_edge, sell_px_edge, px_spread: CSV dung MOT gia chung cho hai ben nen
+    #     gan nhu bang 0; tren DB thi co that - mo hinh se gap luc live mot phan phoi
+    #     chua tung thay luc train.
 
     # Delta luy ke trong phien, chuan hoa theo khoi luong da khop trong phien.
     # Reset moi ngay: delta tich luy tu phien truoc khong con y nghia sau qua dem.

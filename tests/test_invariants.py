@@ -57,6 +57,39 @@ def test_no_feature_tracks_the_raw_price_level(fs):
     assert not offenders, f"dac trung bam theo muc gia: {offenders}"
 
 
+def test_non_regime_features_do_not_drift_across_years(fs, cfg):
+    """Bat bien 19: che do thi truong chi duoc vao X qua cot da khai `regime`.
+
+    Moi do troi khac la loi do cho toi khi chung minh nguoc lai. Vi du that: muc mat
+    can bang mua-ban tho nhay tu -0,13 len +0,05 nam 2023 - voi scaler tinh, ca tap
+    valid va test se nam o +3 sigma, va mo hinh thay "luc mua manh" o moi bar.
+    """
+    from laplace.stationarity import is_regime, yearly_drift
+
+    drift = yearly_drift(fs.features, fs.split.train)
+    limit = 1.0
+    offenders = {c: round(float(d), 2) for c, d in drift.items()
+                 if not is_regime(c, cfg) and d >= limit}
+    assert not offenders, f"cot khong khai regime nhung troi >= {limit} sigma: {offenders}"
+
+
+def test_vendor_artefact_columns_are_gone(fs):
+    """Bon cot do cach ghi so lieu cua nha cung cap sinh ra, khong phai thi truong (spec 006)."""
+    gone = {"flow__participation", "flow__buy_px_edge", "flow__sell_px_edge", "flow__px_spread"}
+    assert not gone & set(fs.columns) and not gone & set(fs.dropped)
+
+
+def test_stationarize_does_not_extend_burn_in(fs, raw):
+    """Lop tinh dung khong duoc cat them bar dau chuoi.
+
+    Da xay ra that: z-score cua mot cot hang so thanh NaN, burn-in dai them 7.843 bar
+    (8 thang train) ma moi bai khac van xanh.
+    """
+    before = build_feature_frame(FeatureConfig(stationarize=False), raw)
+    assert fs.burn_in == before.burn_in, \
+        f"burn-in {before.burn_in} -> {fs.burn_in} bar sau khi bat lop tinh dung"
+
+
 def test_every_column_is_documented(fs, cfg):
     """Bat bien 2: danh muc sinh tu code va phu het moi cot.
 

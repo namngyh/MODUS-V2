@@ -2,7 +2,7 @@
 
 - **Trạng thái**: xong
 - **Ảnh hưởng tới**: `laplace/rl/ppo.py`, `laplace/rl/evaluate.py` (mới), bất biến #18
-- **Không** làm ở spec này: behavior cloning và thí nghiệm 3 nhánh → spec 006
+- **Không** làm ở spec này: behavior cloning và thí nghiệm 3 nhánh → spec 007
 
 ## 1. Câu hỏi
 
@@ -90,7 +90,7 @@ Chỉ lấy một số hạng thì tỷ lệ importance sai mà không có gì b
 | hệ số value loss | 0,5 | |
 
 **Không cái nào được tinh chỉnh ở spec này.** Chúng là mặc định chuẩn, ghi ra để sau này
-biết mình đã bắt đầu từ đâu. Tinh chỉnh làm ở spec 006 trở đi, trên tập valid.
+biết mình đã bắt đầu từ đâu. Tinh chỉnh làm ở spec 007 trở đi, trên tập valid.
 
 ### 2.5 Đánh giá báo cáo bằng ĐIỂM, không bằng reward
 
@@ -253,7 +253,7 @@ nhất — phép so hoàn toàn vô nghĩa. Và −218,3 nằm ngay trong vùng 
 
 Kết luận đúng: **cả hai con số đều không nói lên điều gì.**
 
-### Công suất phát hiện — số liệu để thiết kế spec 006
+### Công suất phát hiện — số liệu để thiết kế spec 007
 
 | Số hạt giống | Sai số chuẩn | Phát hiện được chênh lệch |
 |---:|---:|---:|

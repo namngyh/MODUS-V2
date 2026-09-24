@@ -12,12 +12,13 @@ noi dung tai lieu doc cho nguoi, khong phai comment trong code.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import pandas as pd
 
 from .config import FeatureConfig
 from .indicators import GROUP_BUILDERS, _column_names
+from .stationarity import classify
 
 # --------------------------------------------------------------------------- #
 # Y nghia cua tung ham TA-Lib
@@ -241,14 +242,6 @@ MANUAL: list[tuple[str, str, str]] = [
      "Mất cân bằng dòng lệnh trong bar, −1…1"),
     (r"^ofi_val$", "(BUY_VAL − SELL_VAL) / (BUY_VAL + SELL_VAL)",
      "Mất cân bằng dòng lệnh tính theo giá trị thay vì khối lượng"),
-    (r"^participation$", "(BUY_VOL + SELL_VOL) / VOL",
-     "Tỷ lệ lệnh chủ động trên tổng khớp — độ quyết liệt của bar"),
-    (r"^buy_px_edge$", "log((BUY_VAL / BUY_VOL) / C)",
-     "Giá trung bình bên mua so với giá đóng cửa"),
-    (r"^sell_px_edge$", "log((SELL_VAL / SELL_VOL) / C)",
-     "Giá trung bình bên bán so với giá đóng cửa"),
-    (r"^px_spread$", "buy_px_edge − sell_px_edge",
-     "Chênh lệch giá thực hiện giữa hai bên — proxy cho spread"),
     (r"^cum_delta_day$", "Σ(BUY−SELL) / Σ(BUY+SELL), reset mỗi phiên",
      "Delta luỹ kế trong phiên, chuẩn hoá theo hoạt động đã khớp"),
     (r"^ofi_ma(\d+)$", "mean(ofi, {0})",
@@ -425,9 +418,33 @@ def build_catalog(columns: list[str], cfg: FeatureConfig | None = None,
     cfg = cfg or FeatureConfig()
     talib_map = _talib_features(cfg)
 
-    def lookup(col: str) -> Feature:
+    def base_lookup(col: str) -> Feature:
         group = col.split("__", 1)[0]
-        return talib_map.get(col) or _manual_feature(col, group)
+        f = talib_map.get(col)
+        # Ban sao: lookup() sua cong thuc tai cho, khong duoc lam hong ban dung chung.
+        return replace(f) if f else _manual_feature(col, group)
+
+    def lookup(col: str) -> Feature:
+        # Buoc lop tinh dung (spec 006) boc them mot phep bien doi quanh cong thuc goc.
+        if not cfg.stationarize:
+            return base_lookup(col)
+        w = cfg.rolling_window
+        if col.endswith("_z") and classify(col[:-2], cfg) == "variance":
+            f = base_lookup(col[:-2])
+            f.column = col
+            f.formula = f"PIT_t{cfg.pit_dof:g}(z_{w}(log |{f.formula}|))"
+            f.description = (f"{f.description} — so với {w} bar trước (z-score cuộn, "
+                             f"nén đuôi Student-t)")
+            return f
+        f = base_lookup(col)
+        kind = classify(col, cfg)
+        if kind == "adaptive":
+            f.formula = f"PIT_t{cfg.pit_dof:g}(z_{w}({f.formula}))"
+            f.description = (f"{f.description} — so với {w} bar trước; mức tuyệt đối bị "
+                             f"bỏ vì gãy cấu trúc năm 2023")
+        elif kind == "variance":
+            f.formula = f"log |{f.formula}|"
+        return f
 
     rows = [vars(lookup(c)) for c in columns]
     for col, reason in (dropped or {}).items():

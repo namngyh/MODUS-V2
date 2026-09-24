@@ -7,7 +7,7 @@ statistic, volatility, volume** — thêm ba nhóm ngoài TA-Lib: **order flow**
 (từ `BUY_VOL`/`SELL_VOL`), **session** (vị trí trong phiên, ngày đến đáo hạn), và
 **bot** (toàn bộ đầu vào của hai bot AFL trong [bot/](bot/)).
 
-Kết quả: **454 đặc trưng × 110.098 bar**, đã chuẩn hoá, chia tập theo thời gian, sẵn
+Kết quả: **496 đặc trưng × 110.098 bar**, đã chuẩn hoá, chia tập theo thời gian, sẵn
 sàng đưa vào LSTM encoder + PPO. Kèm theo — lưu tách riêng, **không** phải đặc trưng —
 là lịch sử quyết định `{-1, 0, 1}` của hai bot để agent đối chiếu.
 
@@ -23,7 +23,7 @@ pip install -r requirements.txt
 python build_features.py --out data/features            # dựng và ghi ra đĩa
 python build_features.py --dry-run --horizon 12         # chỉ xem báo cáo
 python build_features.py --candles --window 32           # bật lại nhóm, đổi cửa sổ
-python -m pytest tests/ -q                              # 27 passed
+python -m pytest tests/ -q                              # toàn bộ test
 ```
 
 Dùng trong Python:
@@ -34,12 +34,12 @@ from laplace import FeatureConfig, build_feature_frame
 from laplace.dataset import make_datasets, signals_at_ends, torch_dataset
 
 cfg = FeatureConfig(window=64)
-fs = build_feature_frame(cfg)          # ~7 giây cho 110k bar
+fs = build_feature_frame(cfg)          # ~15 giây cho 110k bar
 print(fs.report())
 
 ds = make_datasets(fs, cfg, horizon=12)["train"]
 loader = torch.utils.data.DataLoader(torch_dataset(ds), batch_size=128, shuffle=True)
-next(iter(loader)).shape               # torch.Size([128, 64, 454])
+next(iter(loader)).shape               # torch.Size([128, 64, 496])
 
 ref = signals_at_ends(fs, ds.ends)     # ý kiến của hai bot tại bar cuối mỗi cửa sổ
 ```
@@ -48,16 +48,16 @@ ref = signals_at_ends(fs, ds.ends)     # ý kiến của hai bot tại bar cuố
 
 | Nhóm | Cột | Nội dung |
 |---|---:|---|
-| `base` | 71 | log-return đa tầm nhìn, hình học nến (thân/bóng/CLV), 4 ước lượng biến động (realized, Parkinson, Garman-Klass, Rogers-Satchell), vị trí trong biên độ, hệ số hiệu quả Kaufman, khối lượng đã khử mùa vụ trong phiên |
+| `base` | 83 | log-return đa tầm nhìn, hình học nến (thân/bóng/CLV), 4 ước lượng biến động (realized, Parkinson, Garman-Klass, Rogers-Satchell), vị trí trong biên độ, hệ số hiệu quả Kaufman, khối lượng đã khử mùa vụ trong phiên |
 | `cycles` | 7 | Hilbert transform: chu kỳ trội, pha, phasor, sine, trend mode |
-| `momentum` | 131 | RSI, CCI, MFI, ADX/DI, AROON, STOCH, MACD, PPO, ULTOSC, WILLR… quét qua 6 chu kỳ |
+| `momentum` | 143 | RSI, CCI, MFI, ADX/DI, AROON, STOCH, MACD, PPO, ULTOSC, WILLR… quét qua 6 chu kỳ |
 | `overlap` | 113 | 9 họ trung bình động × 6 chu kỳ (kèm độ dốc), Bollinger, ACCBANDS, SAR, MAMA, HT_TRENDLINE |
-| `statistic` | 52 | hồi quy tuyến tính (giá trị, góc, độ dốc), STDDEV, VAR, AVGDEV, BETA/CORREL |
-| `volatility` | 7 | ATR, NATR, TRANGE |
+| `statistic` | 64 | hồi quy tuyến tính (giá trị, góc, độ dốc), STDDEV, VAR, AVGDEV, BETA/CORREL |
+| `volatility` | 14 | ATR, NATR, TRANGE — mức (log) và so với tuần trước (`_z`) |
 | `volume` | 5 | AD, OBV, ADOSC ở ba cặp chu kỳ |
-| `flow` | 22 | mất cân bằng lệnh mua/bán, delta luỹ kế trong phiên, chênh lệch giá mua/bán, phân kỳ dòng tiền–giá — nguồn 1 phút phân loại **toàn bộ** khối lượng thành chủ động mua/bán (file 5 phút cũ chỉ phân loại ~18%) |
+| `flow` | 18 | mất cân bằng lệnh mua/bán, delta luỹ kế trong phiên, phân kỳ dòng tiền–giá — tất cả so với 1 tuần trước (spec 006). Nhà cung cấp đổi cách phân loại mua/bán năm 2023 nên chỉ dùng được dạng tương đối |
 | `session` | 19 | tiến độ phiên, sin/cos giờ, khoảng cách bar (bắt nghỉ trưa 90 phút), thứ/tháng, ngày đến đáo hạn |
-| `bot` | 25 | đầu vào của hai bot AFL — [xem mục riêng](#hai-bot-afl) |
+| `bot` | 28 | đầu vào của hai bot AFL — [xem mục riêng](#hai-bot-afl) |
 
 Chu kỳ được **khai bằng phút rồi suy ra số bar**, không khai thẳng bằng số bar: 30 phút,
 1 giờ, 2 giờ, 1 phiên (255 phút), 2 phiên, 1 tuần → `(6, 12, 24, 51, 102, 255)` với bar 5
@@ -174,6 +174,26 @@ NaN.
 về lại thang 0–100 trước khi đổi sang −1…1; `Filt` của Roofing là giá đã lọc thông cao nên
 chia cho `close`.
 
+### 1b. Dừng hoá trước, chuẩn hoá sau — theo bản chất từng cột (spec 006)
+
+Scaler chỉ thu phóng thang đo; một cột trôi theo năm thì sau khi scale vẫn trôi. Nên trước
+scaler, mỗi cột được gán **một lớp** bằng quy tắc theo tên
+([`laplace/stationarity.py`](laplace/stationarity.py)):
+
+| Lớp | Cột | Xử lý | Vì sao |
+|---|---|---|---|
+| `adaptive` | dòng lệnh `flow__*` | `PIT(z₂₅₅(x))` — so với 1 tuần trước | Nhà cung cấp đổi cách phân loại mua/bán năm 2023: mức mất cân bằng nhảy −0,13 → +0,05 và 3,5 % khối lượng thôi được phân loại. Đây là lỗi đo, phải xoá |
+| `variance` | ATR, NATR, STDDEV, rv, Parkinson, GK, RS, ±DM | `log` giữ **mức** + thêm cột `_z` so với 1 tuần trước | Biến động năm 2022 gấp 7 lần 2024 — **thật**. Mô hình cần biết "đang ở mùa nào" lẫn "hôm nay khác tuần trước ra sao" |
+| `regime` | chu kỳ ≥ 2 phiên | giữ nguyên | Xu hướng dài trôi theo năm vì thị trường trôi theo năm — đó chính là tín hiệu |
+| `stationary` | còn lại (RSI, Stoch, khoảng cách tới MA…) | giữ nguyên | Đã dừng: độ trôi trung vị 0,13σ |
+
+`z₂₅₅` dùng trung bình và độ lệch chuẩn của 255 bar **trước** *t*; `PIT` là
+`2·F_t5(z) − 1`, nén đuôi bằng phân phối Student-t 5 bậc tự do về khoảng (−1, 1).
+
+Không áp rolling z-score cho mọi cột: nó xoá **mọi** dịch chuyển kéo dài hơn một tuần — cả
+lỗi đo lẫn thông tin chế độ thật. Bất biến #19 canh phần còn lại: cột nào không khai
+`regime` mà trôi ≥ 1σ giữa các năm là test đỏ.
+
 ### 2. Ranh giới rò rỉ dữ liệu nằm ở đúng một chỗ
 
 `base.py` / `indicators.py` / `orderflow.py` / `session.py` / `bots.py` chỉ chứa phép biến
@@ -196,15 +216,15 @@ cho đặc trưng, 2 điểm cắt cho tín hiệu bot.
 
 ### 3. Không vật chất hoá tensor 3 chiều
 
-Với 83k cửa sổ × 64 bar × 454 đặc trưng, mảng `(N, L, F)` chiếm **9,6 GB** — trong khi ma
-trận 2 chiều gốc chỉ 199 MB. Các cửa sổ chồng lấn nhau 63/64, lưu tách ra là nhân bản dữ
+Với 83k cửa sổ × 64 bar × 496 đặc trưng, mảng `(N, L, F)` chiếm **10,5 GB** — trong khi ma
+trận 2 chiều gốc chỉ 218 MB. Các cửa sổ chồng lấn nhau 63/64, lưu tách ra là nhân bản dữ
 liệu 64 lần một cách vô ích. `SequenceDataset` cắt lát lười ngay trong `__getitem__`;
 `features.npy` đọc được bằng `np.load(mmap_mode="r")`.
 
 ### 4. Tự động tỉa cột
 
 Trên tập train, loại bỏ cột hằng số, cột gần như luôn bằng 0, và cột trùng lặp
-`|corr| ≥ 0,999`. Với cấu hình hiện tại cả 85 cột bị loại đều thuộc loại trùng lặp, và
+`|corr| ≥ 0,999`. Với cấu hình hiện tại cả 97 cột bị loại đều thuộc loại trùng lặp, và
 phần lớn là những trùng lặp mà lọc tay sẽ bỏ sót:
 
 ```
@@ -221,8 +241,8 @@ Lý do từng cột nằm trong `meta.json` và `catalog.json`.
 
 ```
 data/features/
-  features.npy      200 MB   (110098, 454) float32, mmap được
-  catalog.json               danh mục 539 cột (454 dùng + 85 đã loại) kèm mô tả
+  features.npy      218 MB   (110098, 496) float32, mmap được
+  catalog.json               danh mục 593 cột (496 dùng + 97 đã loại) kèm mô tả
   index.parquet              timestamp của từng hàng
   ohlcv.parquet              bar gốc, dùng cho backtest và sinh nhãn
   signals.parquet            vị thế {-1,0,1} và sự kiện vào/ra của hai bot
