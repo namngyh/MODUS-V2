@@ -177,39 +177,47 @@ Implementation chỉ được bắt đầu sau approval.
 ## Project
 
 ```text
-Name:
-Purpose:
-Repository:
-Primary language:
-Framework:
-Database:
-Package manager:
-Test framework:
+Name:            MODUS 2 (thư mục làm việc: laplace)
+Purpose:         Mô hình auto-trading VN30F1M, nến 5 phút: LSTM dự báo → Meta-labeling → PPO ra quyết định
+Repository:      https://github.com/namngyh/MODUS-V2 (nhánh main)
+Primary language: Python 3.13 — chạy bằng `py -3.13` (lệnh `python` trên máy là 3.12 KHÔNG có thư viện)
+Framework:       PyTorch 2.13.0+cu130 (RTX 4060), TA-Lib 0.7, pandas, numpy, scipy, scikit-learn
+Database:        PostgreSQL 16 + TimescaleDB qua Tailscale — CHỈ cho paper trading; huấn luyện dùng CSV
+Package manager: pip (requirements.txt)
+Test framework:  pytest (123 bài, ~6–13 phút)
 ```
 
 ## Important directories
 
 | Path | Purpose |
 |---|---|
-| `<path>` | `<description>` |
-| `<path>` | `<description>` |
+| `laplace/` | Dữ liệu, đặc trưng (468 cột), dừng hoá, chia tập, bot AFL |
+| `laplace/forecast/` | Tầng ① LSTM dự báo: nhãn, lịch học ngoài mẫu, mô hình, huấn luyện, chấm điểm (spec 008) |
+| `laplace/rl/` | Tầng ③ PPO: policy, môi trường GPU, vòng học, đánh giá (spec 002–005) |
+| `bot/` | Hai file AFL gốc (KESPT, roofing2) |
+| `specs/` | Spec 001–008, sổ ghi số lần nhìn tập test |
+| `tests/` | 123 test, canh 20 bất biến |
+| `experiments/` | Kết quả chạy (không commit) |
+| `data/` | Đặc trưng đã dựng, snapshot DB (không commit) |
 
 ## Entry points
 
 ```text
-Application:
-API:
-Worker:
-CLI:
-Training:
-Backtest:
-Tests:
-Configuration:
-Checkpoints:
-Experiments:
-Outputs:
-Logs:
+Application:    — (chưa có)
+CLI đặc trưng:  py -3.13 build_features.py --out data/features
+Training LSTM:  run_forecast.bat [run-id]   (gọi run_forecast.py; người dùng chạy)
+Backtest:       — (chưa có; đánh giá PPO ở laplace/rl/evaluate.py)
+Tests:          py -3.13 -m pytest tests/ -q
+Configuration:  laplace/config.py (đặc trưng, chia tập), laplace/forecast/train.py (TrainConfig)
+Checkpoints:    experiments/forecast/<run-id>/<bản>/seed_XX/<vòng>/ckpt_latest.pt, ckpt_best.pt
+Experiments:    experiments/forecast/<run-id>/run_config.json, summary.json
+Outputs:        pred.parquet (xác suất từng nến), metrics.json mỗi lần học
+Logs:           experiments/forecast/<run-id>/run.log
 ```
+
+Tài liệu đi kèm: **CLAUDE.md** (quy tắc làm việc, bất biến, quyết định), **KIENTRUC.md**
+(kiến trúc MODUS 2 và các quyết định đã chốt), **README.md** (đặc trưng), **FEATURES.md**
+(từng cột, sinh tự động).
 
 ---
 
@@ -218,58 +226,82 @@ Logs:
 ## Current objective
 
 ```text
-TODO
+Kiểm chứng tầng ① của MODUS 2: LSTM có dự báo được HƯỚNG giá VN30F1M (nến 5 phút) tốt hơn
+một mốc không nhìn biểu đồ hay không, trước khi xây Meta và PPO lên trên.
 ```
 
 ## Current task
 
 ```text
-TODO
+Spec 008 — LSTM dự báo (specs/008-lstm-du-bao.md).
+Code xong, test xanh, chạy thử GPU xong. Đang chờ người dùng chốt 2 quyết định (mục 53)
+trước khi sửa phần chấm điểm và giao cho người dùng chạy thật.
 ```
 
 ## Current state
 
-Allowed states:
-
 ```text
-NOT_STARTED
-INVESTIGATING
 DISCUSSING
-APPROVED
-IMPLEMENTING
-TESTING
-RUNNING
-BLOCKED
-DONE
-```
-
-Current:
-
-```text
-TODO
 ```
 
 ## Last known working state
 
 ```text
-Branch:
-Commit:
-Command:
-Result:
-Date:
+Branch:   main
+Commit:   b3132fb (+ commit cập nhật PROCESS.md này)
+Command:  py -3.13 -m pytest tests/ -q
+Result:   123 passed
+Date:     2026-10-01
 ```
 
 ## Current modifications
 
 ```text
-None / TODO
+None — cây làm việc sạch, mọi thứ đã push.
 ```
 
 ## Blockers
 
 ```text
-None / TODO
+1. Tiêu chí chấm LSTM (A / B / C) — người dùng chưa chốt.
+2. Thiết kế bản thí nghiệm thứ ba "tự học không nhãn" (đã duyệt THÊM; chưa chốt mục tiêu
+   T1/T2 và cách tính sai số).
 ```
+
+## Tiến trình đã xong
+
+| Spec | Nội dung | Trạng thái |
+|---|---|---|
+| 001 | Gộp nến 1 phút → 5 phút (khớp 100 % nến của nhà cung cấp) | xong |
+| 002 | Cấu trúc policy PPO: encoder LSTM + head entry / exit / value | xong |
+| 003 | Snapshot DB (chỉ paper trading); sửa nhãn mua/bán bị đảo trong CSV | xong |
+| 004 | Môi trường RL trên GPU, reward theo bội số ATR | xong |
+| 005 | Vòng PPO + đánh giá bằng điểm; mức may rủi 164 điểm (đã hết hiệu lực) | xong |
+| 006 | Dừng hoá theo bản chất cột; phát hiện nhà cung cấp đổi phân loại mua/bán năm 2023 | xong |
+| 007 | Chia tập 2018–2021 / 2022 / 2023+; tách đặc trưng bot khỏi đầu vào LSTM | xong |
+| 008 | LSTM dự báo — code, test, chạy thử | **đang làm** |
+
+## Các quyết định đã chốt (chi tiết: KIENTRUC.md, CLAUDE.md mục 8–9)
+
+- Thứ tự tầng: **LSTM → Meta → PPO**; mọi tầng học trên dự báo "chưa thấy đáp án" (theo năm)
+- Nến 5 phút cho mọi tầng; một vị thế tại một thời điểm; **không đảo chiều trong một nến**
+- PPO: 2 head ra quyết định (entry LONG/SHORT/SKIP, exit HOLD/EXIT) + head value; **không nhận `h_t`**
+- Reward = ½R + ½C; profit (đánh giá) khớp ở **giá mở cửa nến kế tiếp**, tính bằng điểm
+- Chia tập: train 2018–2021 (51.068 nến), valid 2022 (12.596), **test 2023-01 → 2026-09 (45.722) — mở một lần**
+- Đặc trưng bot AFL chỉ vào Meta; ARS mặc định tắt (chờ ARSH v0.6)
+- LSTM: head (a) giá chạm ±1,5 ATR(51) trước trong 24 nến, không qua phiên (3 nhóm);
+  thí nghiệm bản (a) và (a)+(c); **10 seed ngẫu nhiên**; 4 lần học mỗi seed
+- Phí, thuế: làm sau cùng — không nhắc tới
+
+## Phát hiện quan trọng (có số liệu)
+
+- Nhà cung cấp đổi cách phân loại mua/bán từ 2023: mất cân bằng −0,13 → +0,05; 3,5 % khối lượng không còn được phân loại
+- Chênh giá đóng cửa → mở cửa nến sau: trong phiên TB 0,19 điểm, qua trưa/qua đêm TB **3,90 điểm**
+- Bỏ đảo chiều làm KESPT mất ≈ 10 điểm/năm (337 lần đảo / 1.347 lệnh)
+- **Bẫy giờ trong phiên của nhãn (a)**: nhãn bị cắt ở cuối phiên → tỷ lệ "đi ngang" 2,6 % lúc
+  10:00 nhưng 54,9 % lúc 14:20 và 100 % lúc 14:30. Mốc chỉ dùng tỷ lệ theo giờ (0,7873) thắng
+  LSTM 1 epoch (0,8467) trên valid 2022 — tiêu chí chấm cũ không đo được khả năng đoán hướng
+- Chạy thử LSTM: 0,2–0,5 giây/epoch trên RTX 4060
 
 ---
 
@@ -1654,6 +1686,21 @@ Ví dụ:
 - Verify timestamp/timezone before backtesting.
 ```
 
+**Của dự án này** (chi tiết: CLAUDE.md, các spec):
+
+```text
+- Dùng `py -3.13`, KHÔNG dùng `python` (3.12, không có thư viện).
+- Cài lại torch có thể hỏng nó (đường dẫn Windows > 260 ký tự) — kiểm tra _C.cp313-win_amd64.pyd sau khi cài.
+- Mọi tham số ước lượng (scaler, bỏ cột trùng lặp) chỉ khớp trên PHẦN HỌC của đúng lần học đó.
+- Nhãn nhìn trước tới 24 nến: phải cắt bỏ nến học có nhãn chạm giai đoạn dự báo.
+- Nhãn bị cắt ở cuối phiên → "đi ngang" phụ thuộc giờ; mốc so sánh phải theo giờ trong phiên.
+- Dữ liệu dòng lệnh gãy năm 2023 do nhà cung cấp — không dùng mức tuyệt đối của các cột này.
+- Profit khớp ở giá MỞ CỬA nến kế tiếp, không ở giá đóng cửa nến ra quyết định.
+- So độ trôi theo năm chỉ trên năm đủ dữ liệu (năm thiếu tháng làm cột theo mùa "trôi" giả).
+- File .bat phải xuống dòng kiểu Windows (CRLF) — đã ép bằng .gitattributes.
+- Không commit data/, experiments/, ohlc_export.csv; không ghi mật khẩu/DSN (chỉ tên PG_DSN).
+```
+
 `Known Pitfalls` khác `Error Log`.
 
 `Known Pitfalls`:
@@ -1779,64 +1826,94 @@ Không dump toàn bộ terminal log.
 
 # 53. CURRENT TASK HANDOFF
 
-Khi đổi AI hoặc kết thúc session dang dở:
-
 ```text
 Current task:
+  Spec 008 — LSTM dự báo (tầng ① MODUS 2).
 
 Current status:
+  DISCUSSING. Code, 11 test, chạy thử GPU đã xong và đã push. Chờ 2 quyết định.
 
 Approved scope:
+  laplace/forecast/ (nhãn, lịch học, tiền xử lý từng vòng, mô hình, huấn luyện, chấm điểm),
+  run_forecast.py, run_forecast.bat, tách assemble_features trong pipeline, bất biến #20.
+  Đã duyệt THÊM bản thí nghiệm thứ ba "tự học không nhãn" (chưa code).
 
 What has been investigated:
+  - Nhãn (a): tỷ lệ đi ngang theo giờ trong phiên (bảng ở mục 5)
+  - Chạy thử 1 seed / 1 epoch: LSTM thắng mốc tỷ lệ chung chỉ nhờ biết giờ trong phiên;
+    phần đoán hướng: LSTM 0,6867 vs mốc 0,6928 (1 seed — không kết luận được)
+  - Đơn vị reward: R, C, ½R+½C, ⅓ mỗi phần (đo trên 860 lệnh KESPT 2018–2022)
+  - Đọc 3 repo phụ trợ: ARSH (chưa chốt số trạng thái), Distributional BB (xong), EGARCH-X (dữ liệu NGÀY)
 
 What has been implemented:
+  laplace/forecast/{labels,folds,prep,model,train,metrics}.py, run_forecast.py/.bat, tests/test_forecast.py
 
 Files touched:
+  Xem commit b6cc361, b3132fb.
 
 Pre-existing user changes:
+  Không có thay đổi chưa commit. Thư mục .kilo/ (công cụ khác) không thuộc repo — không đụng tới.
 
 Tests already run:
+  py -3.13 -m pytest tests/ -q → 123 passed (2026-10-01)
+  py -3.13 run_forecast.py --smoke → chạy hết 8 lần học, đủ file
 
 Experiment ID:
+  Chưa có lần chạy thật. Chỉ có experiments/forecast/smoke_* (không dùng để kết luận).
 
-Latest checkpoint:
-
-Best checkpoint:
+Latest checkpoint / Best checkpoint:
+  Chỉ của lần chạy thử.
 
 Can resume:
+  Có — chạy lại `run_forecast.bat <run-id>` thì chạy tiếp từ ckpt_latest.pt.
 
 Known issue:
+  Tiêu chí chấm trong spec 008 mục 6 so với mốc tỷ lệ chung — mốc này thua một mốc chỉ
+  biết giờ trong phiên. Giữ tiêu chí cũ thì kết quả "đạt" không chứng minh đoán được hướng.
 
 Next recommended action:
+  1. Người dùng chốt tiêu chí (đề xuất A) và thiết kế bản thứ ba (đề xuất T2 + Huber)
+  2. Sửa metrics.py + phần tổng hợp run_forecast.py; viết bản thứ ba; test; commit
+  3. Người dùng chạy run_forecast.bat (ước tính < 30 phút)
 
 Do NOT:
+  - Nhìn tập test 2023+ (chỉ mở một lần ở cuối, ghi sổ specs/SO-LAN-NHIN-TAP-TEST.md)
+  - Kết luận từ lần chạy thử hoặc từ một seed
+  - Nhắc tới phí / thuế
+  - Dùng lệnh `python` (là 3.12 không có thư viện) — dùng `py -3.13`
 
 Waiting for user decision on:
+  1. Tiêu chí chấm LSTM:
+     A — mốc = tỷ lệ lên/xuống/đi ngang theo từng giờ trong phiên (khớp trên phần học);
+         tiêu chí chính chỉ trên nến có nhãn lên/xuống: sai số thấp hơn mốc ở trung bình
+         10 seed VÀ ở ≥ 8/10 seed          [đề xuất]
+     B — chỉ giữ nến còn ≥ 24 nến tới cuối phiên (mất ~47 % dữ liệu)
+     C — bỏ 19 cột giờ trong phiên khỏi đầu vào LSTM
+  2. Bản thứ ba "tự học không nhãn": mục tiêu T1 (giá trị đặc trưng nến t+1) hay
+     T2 (thay đổi đặc trưng từ t sang t+1) [đề xuất]; sai số Huber [đề xuất] hay bình phương
 ```
-
-AI mới phải đọc phần này trước khi tiếp tục.
 
 ---
 
 # 54. CURRENT CHECKPOINT STATUS
 
 ```text
-Experiment:
-Run:
+Experiment:   chưa có lần chạy thật
+Run:          experiments/forecast/smoke_20261001_142056 (chạy thử, 1 seed, 1 epoch)
 
-Latest checkpoint:
-Created:
-Progress:
+Latest checkpoint: chỉ của lần chạy thử
+Created:           2026-10-01
+Progress:          8/8 lần học (chạy thử)
 
-Best checkpoint:
-Metric:
-Value:
+Best checkpoint:   chỉ của lần chạy thử
+Metric:            entropy chéo head (a) trên 10 % cuối phần học
+Value:             —
 
 Resume status:
-VERIFIED / NOT VERIFIED / FAILED
+  VERIFIED ở mức test (test_checkpoint_resume_restores_training_state: học 4 epoch liền =
+  học 2 epoch, dừng, chạy tiếp). NOT VERIFIED trên lần chạy thật bị ngắt.
 
-Last successful resume test:
+Last successful resume test: 2026-10-01 (pytest)
 ```
 
 ---
@@ -1844,14 +1921,20 @@ Last successful resume test:
 # 55. NEXT ACTIONS
 
 ```text
-[ ] Task 1
-[ ] Task 2
-[ ] Task 3
+[ ] Người dùng chốt tiêu chí chấm LSTM (A/B/C) và thiết kế bản thứ ba
+[ ] Sửa phần chấm điểm; code bản thứ ba; test; commit
+[ ] Người dùng chạy run_forecast.bat → đọc summary.json, ghi kết quả vào spec 008
+[ ] Nếu LSTM đạt: thiết kế Meta (nhãn "lệnh thành công", đầu ra P(thành công), 10 seed → trung bình?)
+[ ] Nếu LSTM không đạt: dừng lại bàn hướng khác trước khi xây Meta/PPO
+[ ] PPO: bỏ đảo chiều, khớp ở giá mở cửa nến sau, reward ½R + ½C, đầu vào từ Meta (một spec)
+[ ] Đo lại mức may rủi của PPO trên valid 2022
+[ ] Việc tối ưu đã ghi: số nến LSTM nhìn lại (64), độ dài h_t (64), cửa sổ ATR 51 và "1 năm"
+[ ] Lọc đặc trưng: tương quan 0,95 → mRMR (so với mốc 468 cột)
+[ ] Mô hình phụ trợ: DBB, EGARCH-X (học lại từng vòng), ARS khi ARSH v0.6
+[ ] Front-end theo dõi/điều khiển — bàn sau lần chạy LSTM đầu tiên
 ```
 
-Danh sách này không phải authorization để code.
-
-Mỗi task mới vẫn phải qua:
+Danh sách này không phải authorization để code. Mỗi task mới vẫn phải qua:
 
 ```text
 Inspect

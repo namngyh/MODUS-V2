@@ -122,6 +122,8 @@ sau.
 | LSTM dự báo gì | **chốt 2026-10-01** — head (a): giá chạm mốc trên / mốc dưới trước, hay đi ngang (3 nhóm). **Thí nghiệm hai bản**: (a) và (a) + head (c) "sau H nến giá đi bao nhiêu" (tính bằng ATR) |
 | Mốc của (a): khoảng cách, thời gian chờ, có qua cuối phiên không | **chốt** — mục 10 |
 | Cách học và chấm LSTM | **chốt** — mục 10 |
+| **Tiêu chí chấm LSTM phải sửa** — mốc tỷ lệ chung thua một mốc chỉ biết giờ trong phiên (nhãn bị cắt ở cuối phiên). Phương án A / B / C | chờ chốt — spec 008, PROCESS.md mục 53 |
+| Bản thí nghiệm thứ ba "tự học không nhãn" | **duyệt thêm**; chờ chốt mục tiêu (T1 / T2) và cách tính sai số |
 | Nhãn "thành công" của Meta | chưa bàn |
 | Lọc đặc trưng tĩnh và động | chưa bàn |
 | Front-end điều khiển config | làm sau khi LSTM chạy được |
