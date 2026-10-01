@@ -48,7 +48,8 @@ def make_split(index: pd.DatetimeIndex, cfg: FeatureConfig) -> TimeSplit:
     train_end = pd.Timestamp(cfg.train_end) + pd.Timedelta(days=1)
     valid_end = pd.Timestamp(cfg.valid_end) + pd.Timedelta(days=1)
 
-    train = np.asarray(index < train_end)
+    start = pd.Timestamp(cfg.train_start)
+    train = np.asarray((index >= start) & (index < train_end))
     valid = np.asarray((index >= train_end) & (index < valid_end))
     test = np.asarray(index >= valid_end)
 

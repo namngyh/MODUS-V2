@@ -2,15 +2,15 @@
 
 Kien truc va ly do chon tung con so nam o specs/002-cau-truc-policy.md. Tom tat:
 
-    454 dac trung x 64 bar
-        -> Linear(454 -> 64) + tanh     29.120 tham so   (87% tham so cua LSTM truc
+    468 dac trung x 64 bar (spec 007)
+        -> Linear(468 -> 64) + tanh     30.016 tham so   (87% tham so cua LSTM truc
                                                           tiep nam o ma tran dau vao,
                                                           nen chieu truoc la cach re
                                                           nhat de cat mot nua)
         -> LSTM(64 -> 64), 1 lop        33.280
-        -> h_t (64) ghep 10 so trang thai vi the
+        -> h_t (64) ghep 9 so trang thai vi the
         -> ENTRY(3) | EXIT(2) | VALUE(1)  moi cai ~4.900
-                                        tong 77.190
+                                        tong 77.894
 
 Ngan sach: 83.025 cua so train nhung chi 1.297 khoi 64-bar doc lap, nen moi tham so
 deu phai tra gia.

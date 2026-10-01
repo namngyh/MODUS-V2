@@ -44,6 +44,9 @@ class FeatureSet:
     # Quyet dinh cua hai bot AFL, {-1, 0, 1}. KHONG nam trong `features` va khong
     # di qua scaler: day la y kien tham chieu de agent doi chieu, khong phai dau vao.
     signals: pd.DataFrame | None = None
+    # Dau vao cua hai bot (da doi don vi + dung hoa, CHUA scale). Chi danh cho Meta
+    # (spec 007, bat bien 6): LSTM khong bao gio thay cac cot nay.
+    bot_inputs: pd.DataFrame | None = None
 
     @property
     def columns(self) -> list[str]:
@@ -62,10 +65,15 @@ class FeatureSet:
             "So cot theo nhom:",
         ]
         lines += [f"  {g:12s} {len(c):4d}" for g, c in self.groups.items()]
+        if self.bot_inputs is not None:
+            lines.append(f"  {'(bot->Meta)':12s} {self.bot_inputs.shape[1]:4d}  khong nam trong X")
         if self.signals is not None:
-            lines += ["", "Tin hieu bot (khong phai dac trung):"]
+            # Chi thong ke tren train + valid: tap test la bai thi cuoi, khong nhin ke ca
+            # thong ke mo ta (so ghi so lan nhin tap test).
+            seen = self.split.train | self.split.valid
+            lines += ["", "Tin hieu bot (khong phai dac trung), chi train + valid:"]
             for bot in ("kespt", "roofing", "both"):
-                pos = self.signals[f"{bot}_pos"]
+                pos = self.signals[f"{bot}_pos"][seen]
                 lines.append(
                     f"  {bot:8s} long {(pos == 1).sum():6d}  short {(pos == -1).sum():6d}"
                     f"  flat {(pos == 0).sum():6d}"
@@ -129,6 +137,9 @@ def build_feature_frame(cfg: FeatureConfig | None = None,
 
     runs = run_bots(df) if (cfg.use_bots or cfg.emit_bot_signals) else None
     blocks = build_raw_features(df, cfg, runs)
+    # Khoi bot tinh cung luot (de bai kiem tra nhan qua phu luon no) nhung TACH khoi X:
+    # dau vao bot chi danh cho Meta (spec 007, bat bien 6).
+    bot_inputs = blocks.pop("bot", None)
     features = pd.concat(blocks.values(), axis=1)
 
     signals = build_bot_signals(df, runs) if cfg.emit_bot_signals else None
@@ -138,6 +149,8 @@ def build_feature_frame(cfg: FeatureConfig | None = None,
     ohlcv = df.iloc[burn_in:]
     if signals is not None:
         signals = signals.iloc[burn_in:]
+    if bot_inputs is not None:
+        bot_inputs = bot_inputs.iloc[burn_in:]
 
     split = make_split(features.index, cfg)
     if not split.train.any():
@@ -154,4 +167,5 @@ def build_feature_frame(cfg: FeatureConfig | None = None,
     groups = {
         g: [c for c in features.columns if c.startswith(f"{g}__")] for g in blocks
     }
-    return FeatureSet(features, ohlcv, split, scaler, dropped, burn_in, groups, signals)
+    return FeatureSet(features, ohlcv, split, scaler, dropped, burn_in, groups, signals,
+                      bot_inputs)

@@ -134,11 +134,12 @@ def test_disabled_group_leaves_no_columns(raw):
     Cac co bat/tat la co che chay ablation; neu chung khong that su go het cot thi
     ket qua ablation vo nghia.
     """
-    for flag, prefix in (("use_candles", "candles__"), ("use_orderflow", "flow__"),
-                         ("use_bots", "bot__")):
+    for flag, prefix in (("use_candles", "candles__"), ("use_orderflow", "flow__")):
         cfg = FeatureConfig(**{flag: False})
         fs = build_feature_frame(cfg, raw)
         assert not [c for c in fs.columns if c.startswith(prefix)], flag
+    # Bot khong bao gio o X (bat bien 6); co `use_bots` bat/tat bang rieng cho Meta.
+    assert build_feature_frame(FeatureConfig(use_bots=False), raw).bot_inputs is None
 
 
 def test_position_state_not_in_feature_matrix(fs):

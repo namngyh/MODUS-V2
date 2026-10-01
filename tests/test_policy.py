@@ -18,6 +18,7 @@ from laplace.rl.state import (
     ENTRY_SKIP,
     EXIT_EXIT,
     EXIT_HOLD,
+    N_INTERACTION,
     N_STATE,
     PositionState,
     resolve_actions,
@@ -137,7 +138,7 @@ def test_interaction_terms_flip_sign_with_position(state):
     """So hang tuong tac phai doi dau theo chieu lenh - do la ca muc dich cua chung."""
     atr = torch.full((N_ENV,), 5.0)
     px = torch.full((N_ENV,), 1000.0)
-    directional = torch.randn(N_ENV, 4)
+    directional = torch.randn(N_ENV, N_INTERACTION)
 
     state.apply(torch.full((N_ENV,), ENTRY_LONG, dtype=torch.int64),
                 torch.zeros(N_ENV, dtype=torch.int64), px, atr)
@@ -148,7 +149,8 @@ def test_interaction_terms_flip_sign_with_position(state):
                 torch.zeros(N_ENV, dtype=torch.int64), px, atr)
     v_short = state.state_vector(px, directional)
 
-    torch.testing.assert_close(v_long[:, -4:], -v_short[:, -4:])
+    k = N_INTERACTION
+    torch.testing.assert_close(v_long[:, -k:], -v_short[:, -k:])
 
 
 def test_position_state_variables_are_scale_free(state):
@@ -159,7 +161,7 @@ def test_position_state_variables_are_scale_free(state):
     """
     zero = torch.zeros(N_ENV, dtype=torch.int64)
     long_ = torch.full((N_ENV,), ENTRY_LONG, dtype=torch.int64)
-    d = torch.zeros(N_ENV, 4)
+    d = torch.zeros(N_ENV, N_INTERACTION)
 
     # Kich ban 1: gia 900, ATR 3, chay len 6 diem = 2 ATR
     state.apply(long_, zero, torch.full((N_ENV,), 900.0), torch.full((N_ENV,), 3.0))
@@ -236,7 +238,7 @@ def test_retained_is_bounded_without_any_convention(state):
     """
     zero = torch.zeros(N_ENV, dtype=torch.int64)
     long_ = torch.full((N_ENV,), ENTRY_LONG, dtype=torch.int64)
-    d = torch.zeros(N_ENV, 4)
+    d = torch.zeros(N_ENV, N_INTERACTION)
     atr = torch.full((N_ENV,), 5.0)
 
     # Lenh lo ngay tu dau: MFE khong bao gio vuot 0
@@ -264,7 +266,7 @@ def test_unbounded_state_vars_are_squashed(state):
     """pnl, MFE va dist_stop phai duoc nen ve thang do cua cac dau vao con lai."""
     zero = torch.zeros(N_ENV, dtype=torch.int64)
     long_ = torch.full((N_ENV,), ENTRY_LONG, dtype=torch.int64)
-    d = torch.zeros(N_ENV, 4)
+    d = torch.zeros(N_ENV, N_INTERACTION)
     atr = torch.full((N_ENV,), 1.0)
 
     # Lai 80 ATR - dung bang muc lon nhat do duoc tren lenh cua KESPT

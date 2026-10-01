@@ -28,7 +28,8 @@ from .state import PositionState
 
 # Bon dac trung CO CHIEU, nhan voi dau vi the de head exit nhin thi truong "tu goc cua
 # lenh dang cam" (spec 002 muc 2.5).
-DIRECTIONAL = ("base__ret1", "base__ret12", "base__ret51", "bot__kespt_st_dist_atr")
+# Spec 007: bo `bot__kespt_st_dist_atr` - dac trung bot khong con nam trong X.
+DIRECTIONAL = ("base__ret1", "base__ret12", "base__ret51")
 
 
 class TradingEnv:

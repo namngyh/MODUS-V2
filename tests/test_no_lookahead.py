@@ -71,6 +71,19 @@ def test_split_is_ordered_and_embargoed(cfg, raw):
     assert gap_test > cfg.embargo_bars
 
 
+def test_split_matches_the_agreed_dates(cfg, raw):
+    """Spec 007: train 2018-2021, valid 2022, test 2023 tro di (nguoi dung chot)."""
+    fs = build_feature_frame(cfg, raw)
+    idx = fs.features.index
+    tr, va, te = idx[fs.split.train], idx[fs.split.valid], idx[fs.split.test]
+    assert tr.min() >= pd.Timestamp("2018-01-01") and tr.max() < pd.Timestamp("2022-01-01")
+    assert va.min() >= pd.Timestamp("2022-01-01") and va.max() < pd.Timestamp("2023-01-01")
+    assert te.min() >= pd.Timestamp("2023-01-01")
+    before = np.asarray(idx < pd.Timestamp(cfg.train_start))
+    used = fs.split.train | fs.split.valid | fs.split.test
+    assert not used[before].any(), "bar truoc train_start khong duoc thuoc tap nao"
+
+
 def test_scaler_ignores_valid_and_test(cfg, raw):
     """Tham so scaler chi duoc phep phu thuoc vao tap train.
 
@@ -89,14 +102,27 @@ def test_scaler_ignores_valid_and_test(cfg, raw):
 
 
 def test_windows_stay_inside_their_split(cfg, raw):
-    """Cua so cua tap train khong duoc cham vao bar cua valid/test."""
-    fs = build_feature_frame(cfg, raw)
-    ends = window_ends(fs, cfg, fs.split.train)
-    starts = ends - cfg.window + 1
+    """Bat bien 5: cua so cua mot tap khong duoc chua bar nao cua TAP KHAC.
 
-    assert starts.min() >= 0
-    assert fs.split.train[ends].all()
-    assert fs.split.train[starts].all()
+    Bar ngoai moi tap (truoc train_start, vung dem) duoc phep lam boi canh: chung nam
+    truoc tap dang xet nen khong nhin tuong lai. Truoc spec 007 bai nay doi ca cua so
+    nam trong train - dung chi vi train bat dau o bar dau tien cua du lieu.
+    """
+    fs = build_feature_frame(cfg, raw)
+    masks = {n: getattr(fs.split, n) for n in ("train", "valid", "test")}
+    for name, mask in masks.items():
+        ends = window_ends(fs, cfg, mask)
+        starts = ends - cfg.window + 1
+        assert starts.min() >= 0
+        assert mask[ends].all()
+        others = np.zeros(len(mask), bool)
+        for other, m in masks.items():
+            if other != name:
+                others |= m
+        # Mot bar thuoc tap khac nam trong cua so <=> cumsum tang trong [start, end].
+        c = np.r_[0, np.cumsum(others)]
+        touched = c[ends + 1] - c[starts]
+        assert not touched.any(), f"cua so cua {name} cham bar cua tap khac"
 
 
 def test_window_does_not_cross_day_when_disabled(cfg, raw):

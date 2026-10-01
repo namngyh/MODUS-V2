@@ -63,8 +63,10 @@ class FeatureConfig:
     scaler: str = "robust"               # "robust" | "standard" | "none"
 
     # --- chia tap theo thoi gian (khong shuffle) ---
-    train_end: str = "2024-06-30"
-    valid_end: str = "2025-06-30"
+    # Nguoi dung chot 2026-09-28 (spec 007). Bar truoc train_start khong thuoc tap nao.
+    train_start: str = "2018-01-01"
+    train_end: str = "2021-12-31"
+    valid_end: str = "2022-12-31"          # test: tu 2023-01-01 toi het du lieu
 
     # --- dong goi cho model ---
     window: int = 64                     # do dai chuoi dua vao LSTM/TCN/Transformer

@@ -15,15 +15,15 @@ ENTRY_SKIP, ENTRY_LONG, ENTRY_SHORT = 0, 1, 2
 # Hanh dong cua head EXIT (chi dung khi dang co lenh)
 EXIT_HOLD, EXIT_EXIT = 0, 1
 
-# 6 bien vi the + 4 so hang tuong tac. Tien to "pos_" la co y: no lam bat bien #14
+# 6 bien vi the + 3 so hang tuong tac. Tien to "pos_" la co y: no lam bat bien #14
 # ("trang thai vi the khong bao gio nam trong features.npy") kiem tra duoc bang ten,
 # va loai bo kha nang trung ten voi mot cot dac trung thi truong.
 STATE_NAMES = (
     "pos_side", "pos_bars_held", "pos_pnl_atr", "pos_mfe_atr",
     "pos_retained", "pos_dist_stop",
-    "pos_x_ret1", "pos_x_ret12", "pos_x_ret51", "pos_x_st_dist",
+    "pos_x_ret1", "pos_x_ret12", "pos_x_ret51",
 )
-N_POSITION_VARS, N_INTERACTION = 6, 4
+N_POSITION_VARS, N_INTERACTION = 6, 3     # spec 007: bo so hang tuong tac voi bot
 N_STATE = N_POSITION_VARS + N_INTERACTION
 assert len(STATE_NAMES) == N_STATE
 
@@ -149,10 +149,10 @@ class PositionState:
 
     # ------------------------------------------------------------------ #
     def state_vector(self, price: torch.Tensor, directional: torch.Tensor) -> torch.Tensor:
-        """Ghep 10 so dua vao sau encoder: 6 bien vi the + 4 so hang tuong tac.
+        """Ghep 9 so dua vao sau encoder: 6 bien vi the + 3 so hang tuong tac.
 
-        `directional` la (N, 4) gom cac dac trung CO CHIEU lay tu ma tran dac trung:
-        ret1, ret12, ret51, kespt_st_dist_atr. Chung duoc nhan voi dau vi the de head
+        `directional` la (N, 3) gom cac dac trung CO CHIEU lay tu ma tran dac trung:
+        ret1, ret12, ret51. Chung duoc nhan voi dau vi the de head
         exit nhin thi truong "tu goc cua lenh dang cam" - nho vay no chi phai hoc mot
         ham thay vi hai ham rieng cho long va short.
 

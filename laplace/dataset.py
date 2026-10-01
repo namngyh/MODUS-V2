@@ -125,6 +125,12 @@ def save_dataset(fs: FeatureSet, cfg: FeatureConfig, outdir: str | Path) -> Path
     if fs.signals is not None:
         # Luu tach khoi features.npy: day la tin hieu tham chieu, khong phai dau vao.
         fs.signals.reset_index().to_parquet(outdir / "signals.parquet")
+    bot_path = outdir / "bot_inputs.parquet"
+    if fs.bot_inputs is not None:
+        # Dau vao cua Meta, KHONG phai cua LSTM (spec 007): luu rieng, chua scale.
+        fs.bot_inputs.reset_index().to_parquet(bot_path)
+    elif bot_path.exists():
+        bot_path.unlink()               # khong de ban cu cua mot cau hinh khac nam lai
     fs.features.index.to_frame(index=False).to_parquet(outdir / "index.parquet")
     fs.ohlcv.reset_index().to_parquet(outdir / "ohlcv.parquet")
 
@@ -183,6 +189,12 @@ def load_dataset(outdir: str | Path, mmap: bool = True):
     if sig_path.exists():
         signals = pd.read_parquet(sig_path).set_index("ts")
     return matrix, index, splits, meta, signals
+
+
+def load_bot_inputs(outdir: str | Path) -> pd.DataFrame | None:
+    """Dau vao cua hai bot da luu - chi danh cho Meta (spec 007)."""
+    path = Path(outdir) / "bot_inputs.parquet"
+    return pd.read_parquet(path).set_index("ts") if path.exists() else None
 
 
 def signals_at_ends(fs: FeatureSet, ends: np.ndarray) -> np.ndarray:

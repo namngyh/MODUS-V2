@@ -1,6 +1,6 @@
 # Danh mục đặc trưng
 
-**496** đặc trưng trong ma trận đầu vào, **97** cột bị loại ở bước tỉa. Sinh tự động từ `laplace/catalog.py` — đừng sửa tay.
+**468** đặc trưng trong ma trận đầu vào, **91** cột bị loại ở bước tỉa. Sinh tự động từ `laplace/catalog.py` — đừng sửa tay.
 
 ## `base` — Biến đổi cơ bản từ OHLC  (83 cột)
 
@@ -520,40 +520,7 @@
 | 18 | `session__is_expiry_week` | laplace | 1 khi còn ≤ 5 ngày đến đáo hạn | Tuần đáo hạn |
 | 19 | `session__is_expiry_day` | laplace | 1 đúng ngày đáo hạn | Ngày đáo hạn — thanh khoản và biến động bất thường |
 
-## `bot` — Đầu vào của hai bot AFL  (28 cột)
-
-| # | Cột | Nguồn | Công thức / chuẩn hoá | Ý nghĩa |
-|---:|---|---|---|---|
-| 1 | `bot__kespt_st_up` | laplace | log \|log(Up / C)\| | Băng trên của SuperTrend(3, ATR 28) |
-| 2 | `bot__kespt_st_up_z` | laplace | PIT_t5(z_255(log \|log(Up / C)\|)) | Băng trên của SuperTrend(3, ATR 28) — so với 255 bar trước (z-score cuộn, nén đuôi Student-t) |
-| 3 | `bot__kespt_st_dn` | laplace | log \|log(Dn / C)\| | Băng dưới của SuperTrend(3, ATR 28) |
-| 4 | `bot__kespt_st_dn_z` | laplace | PIT_t5(z_255(log \|log(Dn / C)\|)) | Băng dưới của SuperTrend(3, ATR 28) — so với 255 bar trước (z-score cuộn, nén đuôi Student-t) |
-| 5 | `bot__kespt_st_line` | laplace | log(đường ST đang hoạt động / C) | Đường SuperTrend hiện hành — chính là mức dừng lỗ của bot |
-| 6 | `bot__kespt_st_trend` | laplace | +1 / −1 | Trạng thái xu thế SuperTrend |
-| 7 | `bot__kespt_st_dist_atr` | laplace | (C − đường ST) / ATR(28) | Còn bao nhiêu ATR trước khi SuperTrend đảo chiều — đại lượng bot thực sự dựa vào |
-| 8 | `bot__kespt_atr28_z` | laplace | PIT_t5(z_255(log \|ATR(28) / C\|)) | Biên độ thật trung bình theo tham số của bot — so với 255 bar trước (z-score cuộn, nén đuôi Student-t) |
-| 9 | `bot__kespt_stochk` | laplace | StochK(22, 43) / 50 − 1 | Stochastic %K theo đúng tham số của bot |
-| 10 | `bot__kespt_lrsi` | laplace | LinearReg(RSI(22), 54) / 50 − 1 | RSI đã làm phẳng bằng hồi quy tuyến tính |
-| 11 | `bot__kespt_lsto` | laplace | LinearReg(StochK(22,43), 54) / 50 − 1 | Stochastic đã làm phẳng bằng hồi quy tuyến tính |
-| 12 | `bot__kespt_storsi` | laplace | (3,7·LRSI + LSTO) / 4,7 rồi đổi về −1…1 | Dao động lõi của bot KESPT |
-| 13 | `bot__kespt_storsi_ma` | laplace | WMA(STORSI, 34) rồi đổi về −1…1 | Đường tín hiệu của STORSI |
-| 14 | `bot__kespt_hiskf` | laplace | (STORSI − STORSIma) / 4,7 / 50 | Histogram KF — giao cắt của nó sinh tín hiệu vào lệnh |
-| 15 | `bot__kespt_ema300` | laplace | log(EMA(C, 300) / C) | Bộ lọc xu thế của bot KESPT |
-| 16 | `bot__kespt_above_ema` | laplace | sign(C − EMA300) | Giá trên hay dưới bộ lọc xu thế |
-| 17 | `bot__kespt_kf_state` | laplace | +1 / −1 | Trạng thái giao cắt KF (Buy1 / Short1) |
-| 18 | `bot__kespt_sig_state` | laplace | +1 / 0 / −1 | KF và SuperTrend đã cùng chiều chưa — điều kiện trước khi áp bộ lọc EMA |
-| 19 | `bot__roof_hp` | laplace | HighPass(C, 120) / C | Giá đã lọc thông cao — bỏ thành phần xu thế chậm |
-| 20 | `bot__roof_filt` | laplace | SuperSmoother(HP, 22) / C | Roofing Filter của Ehlers — dao động lõi của bot Roofing |
-| 21 | `bot__roof_signal` | laplace | WMA(Filt, 10) / C | Đường tín hiệu của Roofing Filter |
-| 22 | `bot__roof_hist` | laplace | (Filt − Signal) / C | Histogram Roofing — giao cắt sinh tín hiệu vào lệnh |
-| 23 | `bot__roof_mom` | laplace | (Filt − Filt[−45]) / C | Động lượng của Roofing Filter |
-| 24 | `bot__roof_momz` | laplace | Mom / stdev(Mom, 160) | Momentum thrust dạng z-score — công tắc chính của bot, ngưỡng ±0,72 |
-| 25 | `bot__roof_above_ema` | laplace | sign(C − Ref(EMA(C,240), −1)) | Giá trên hay dưới bộ lọc xu thế của Roofing |
-| 26 | `bot__roof_open_state` | laplace | +1 / −1 | Trạng thái giao cắt Roofing (openBuy / openShort) |
-| 27 | `bot__roof_mom_gate` | laplace | +1 / 0 / −1 | Cổng momentum đã mở chưa và mở về chiều nào |
-| 28 | `bot__agree_trend` | laplace | kespt_st_trend · roof_open_state | Hai bot đồng thuận (+1) hay mâu thuẫn (−1) về chiều |
-
-## Cột bị loại ở bước tỉa  (97 cột)
+## Cột bị loại ở bước tỉa  (91 cột)
 
 Loại trên tập train: hằng số, gần như luôn bằng 0, hoặc trùng lặp với một cột khác ở mức |corr| ≥ 0,999.
 
@@ -650,9 +617,3 @@ Loại trên tập train: hằng số, gần như luôn bằng 0, hoặc trùng 
 | 89 | `price__WCLPRICE` | trung lap voi price__MEDPRICE |
 | 90 | `flow__ofi_val` | trung lap voi flow__ofi |
 | 91 | `session__minute_norm` | trung lap voi session__tod_sin |
-| 92 | `bot__kespt_atr28` | trung lap voi volatility__ATR24 |
-| 93 | `bot__kespt_rsi22` | trung lap voi momentum__RSI24 |
-| 94 | `bot__kespt_ema300_slope` | trung lap voi bot__kespt_ema300 |
-| 95 | `bot__roof_ema240` | trung lap voi overlap__EMA255 |
-| 96 | `bot__roof_emafilter` | trung lap voi overlap__EMA255 |
-| 97 | `bot__roof_ema240_slope` | trung lap voi overlap__EMA255 |

@@ -7,7 +7,7 @@ statistic, volatility, volume** — thêm ba nhóm ngoài TA-Lib: **order flow**
 (từ `BUY_VOL`/`SELL_VOL`), **session** (vị trí trong phiên, ngày đến đáo hạn), và
 **bot** (toàn bộ đầu vào của hai bot AFL trong [bot/](bot/)).
 
-Kết quả: **496 đặc trưng × 110.098 bar**, đã chuẩn hoá, chia tập theo thời gian, sẵn
+Kết quả: **468 đặc trưng × 110.098 bar**, đã chuẩn hoá, chia tập theo thời gian, sẵn
 sàng đưa vào LSTM encoder + PPO. Kèm theo — lưu tách riêng, **không** phải đặc trưng —
 là lịch sử quyết định `{-1, 0, 1}` của hai bot để agent đối chiếu.
 
@@ -39,7 +39,7 @@ print(fs.report())
 
 ds = make_datasets(fs, cfg, horizon=12)["train"]
 loader = torch.utils.data.DataLoader(torch_dataset(ds), batch_size=128, shuffle=True)
-next(iter(loader)).shape               # torch.Size([128, 64, 496])
+next(iter(loader)).shape               # torch.Size([128, 64, 468])
 
 ref = signals_at_ends(fs, ds.ends)     # ý kiến của hai bot tại bar cuối mỗi cửa sổ
 ```
@@ -57,7 +57,6 @@ ref = signals_at_ends(fs, ds.ends)     # ý kiến của hai bot tại bar cuố
 | `volume` | 5 | AD, OBV, ADOSC ở ba cặp chu kỳ |
 | `flow` | 18 | mất cân bằng lệnh mua/bán, delta luỹ kế trong phiên, phân kỳ dòng tiền–giá — tất cả so với 1 tuần trước (spec 006). Nhà cung cấp đổi cách phân loại mua/bán năm 2023 nên chỉ dùng được dạng tương đối |
 | `session` | 19 | tiến độ phiên, sin/cos giờ, khoảng cách bar (bắt nghỉ trưa 90 phút), thứ/tháng, ngày đến đáo hạn |
-| `bot` | 28 | đầu vào của hai bot AFL — [xem mục riêng](#hai-bot-afl) |
 
 Chu kỳ được **khai bằng phút rồi suy ra số bar**, không khai thẳng bằng số bar: 30 phút,
 1 giờ, 2 giờ, 1 phiên (255 phút), 2 phiên, 1 tuần → `(6, 12, 24, 51, 102, 255)` với bar 5
@@ -96,16 +95,11 @@ sửa, Roofing là bộ lọc IIR 2 cực — nên không vector hoá được v
 nhật của bản gốc. `tests/test_bots.py` kiểm chứng bằng bất biến hình học (đường ST luôn
 nằm đúng phía của giá) và bằng bài kiểm tra nhân quả.
 
-Cột nào trùng lặp với đặc trưng đã có sẽ **tự động bị loại** theo tương quan trên tập
-train, nên không cần lọc tay:
-
-```
-bot__kespt_atr28        → trùng lặp với volatility__ATR24
-bot__kespt_rsi22        → trùng lặp với momentum__RSI24
-bot__roof_ema240        → trùng lặp với overlap__EMA255
-bot__roof_emafilter     → trùng lặp với overlap__EMA255
-bot__kespt_ema300_slope → trùng lặp với bot__kespt_ema300
-```
+**Từ spec 007, đầu vào của bot không còn nằm trong X.** Chúng vẫn được tính (đổi đơn vị
+và dừng hoá như mọi cột khác) nhưng ghi ra bảng riêng `bot_inputs.parquet` — 34 cột, chưa
+scale — chỉ dành cho tầng Meta-Labeling ([KIENTRUC.md](KIENTRUC.md)). LSTM không bao giờ
+thấy ý kiến của bot; nếu thấy, nó sẽ học cách bắt chước bot, và Meta — tầng duy nhất được
+đối chiếu với bot — mất vai trò. Bất biến #6 canh việc này.
 
 ### Tín hiệu — không phải đặc trưng
 
@@ -123,15 +117,15 @@ Chúng nằm ngoài `features.npy` và không đi qua scaler — có một test 
 (`test_signals_stay_out_of_the_feature_matrix`) canh việc này, vì nếu để lọt vào X thì mô
 hình chỉ học cách sao chép bot thay vì học thị trường.
 
-Phân bố sau burn-in:
+Phân bố trên train + valid (2018–2022; không tính tập test):
 
 ```
-kespt    long  41.328   short  29.759   flat  38.272    (65,0% thời gian có vị thế)
-roofing  long   9.739   short   7.944   flat  91.676    (16,2% thời gian có vị thế)
-both     long   9.135   short   7.203   flat  93.021    (14,9% thời gian có vị thế)
+kespt    long  23.118   short  17.948   flat  22.598    (64,5% thời gian có vị thế)
+roofing  long   5.484   short   4.925   flat  53.255    (16,3% thời gian có vị thế)
+both     long   5.167   short   4.450   flat  54.047    (15,1% thời gian có vị thế)
 ```
 
-Hai bot chỉ đồng thuận **49,6%** số bar — đủ khác nhau để làm hai ý kiến độc lập, không
+Hai bot chỉ đồng thuận **49,5%** số bar train — đủ khác nhau để làm hai ý kiến độc lập, không
 phải một tín hiệu nhân đôi.
 
 Backtest thô để kiểm chứng bản dịch (1 hợp đồng, phí 0,4 điểm/lượt, toàn bộ 2017–2026):
@@ -216,15 +210,15 @@ cho đặc trưng, 2 điểm cắt cho tín hiệu bot.
 
 ### 3. Không vật chất hoá tensor 3 chiều
 
-Với 83k cửa sổ × 64 bar × 496 đặc trưng, mảng `(N, L, F)` chiếm **10,5 GB** — trong khi ma
-trận 2 chiều gốc chỉ 218 MB. Các cửa sổ chồng lấn nhau 63/64, lưu tách ra là nhân bản dữ
+Với 51k cửa sổ train × 64 bar × 468 đặc trưng, mảng `(N, L, F)` chiếm **6,1 GB** — trong khi ma
+trận 2 chiều gốc chỉ 206 MB. Các cửa sổ chồng lấn nhau 63/64, lưu tách ra là nhân bản dữ
 liệu 64 lần một cách vô ích. `SequenceDataset` cắt lát lười ngay trong `__getitem__`;
 `features.npy` đọc được bằng `np.load(mmap_mode="r")`.
 
 ### 4. Tự động tỉa cột
 
 Trên tập train, loại bỏ cột hằng số, cột gần như luôn bằng 0, và cột trùng lặp
-`|corr| ≥ 0,999`. Với cấu hình hiện tại cả 97 cột bị loại đều thuộc loại trùng lặp, và
+`|corr| ≥ 0,999`. Với cấu hình hiện tại cả 91 cột bị loại đều thuộc loại trùng lặp, và
 phần lớn là những trùng lặp mà lọc tay sẽ bỏ sót:
 
 ```
@@ -241,22 +235,23 @@ Lý do từng cột nằm trong `meta.json` và `catalog.json`.
 
 ```
 data/features/
-  features.npy      218 MB   (110098, 496) float32, mmap được
-  catalog.json               danh mục 593 cột (496 dùng + 97 đã loại) kèm mô tả
+  features.npy      206 MB   (110098, 468) float32, mmap được
+  catalog.json               danh mục 559 cột (468 dùng + 91 đã loại) kèm mô tả
   index.parquet              timestamp của từng hàng
   ohlcv.parquet              bar gốc, dùng cho backtest và sinh nhãn
   signals.parquet            vị thế {-1,0,1} và sự kiện vào/ra của hai bot
+  bot_inputs.parquet         34 cột đầu vào của hai bot, chỉ dành cho Meta (không nằm trong X)
   splits.npz                 chỉ số train / valid / test
   scaler.npz + .json         center, scale, danh sách cột — dùng lại khi suy luận
   meta.json                  cột, nhóm, lý do loại cột, config đầy đủ
 ```
 
-Chia tập mặc định:
+Chia tập mặc định (spec 007):
 
 ```
-train    83.088 bar   2017-12-18 → 2024-06-28
-valid    12.502 bar   2024-07-03 → 2025-06-30
-test     14.304 bar   2025-07-03 → 2026-09-04
+train    51.068 bar   2018-01-02 → 2021-12-31
+valid    12.596 bar   2022-01-06 → 2022-12-30
+test     45.722 bar   2023-01-05 → 2026-09-04     ← bài thi cuối, mở một lần
 ```
 
 ## Cấu trúc

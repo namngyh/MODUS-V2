@@ -160,13 +160,25 @@ def test_signals_stay_out_of_the_feature_matrix(cfg, raw):
     assert not any(c.endswith("_pos") for c in fs.columns)
 
 
-def test_bot_feature_group_is_present(cfg, raw):
+def test_bot_columns_never_in_feature_matrix(cfg, raw):
+    """Bat bien 6 (spec 007): dac trung bot chi danh cho Meta, khong bao gio vao X.
+
+    X la dau vao cua LSTM. Bot lot vao X thi LSTM hoc cach bat chuoc bot, va Meta -
+    tang duy nhat duoc phep dung y kien cua bot - mat vai tro doi chieu.
+    """
     fs = build_feature_frame(cfg, raw)
-    assert len(fs.groups["bot"]) > 10
-    # Cac dai luong loi cua ca hai bot phai song sot qua buoc tia cot.
+    assert not [c for c in fs.columns if c.startswith("bot__")]
+    assert "bot" not in fs.groups
+
+
+def test_bot_inputs_are_kept_for_meta(cfg, raw):
+    """Tach ra khoi X nhung KHONG bo: Meta can dau vao da chuan hoa cua hai bot."""
+    fs = build_feature_frame(cfg, raw)
+    assert fs.bot_inputs is not None
+    pd.testing.assert_index_equal(fs.bot_inputs.index, fs.features.index)
     for name in ("bot__kespt_st_dist_atr", "bot__kespt_storsi",
                  "bot__roof_filt", "bot__roof_momz"):
-        assert name in fs.columns
+        assert name in fs.bot_inputs.columns
 
 
 def test_supertrend_line_sits_on_the_right_side_of_price(raw):
