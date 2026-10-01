@@ -249,6 +249,7 @@ trong cùng một thay đổi.
 | 17 | Tổng reward của một lệnh = đúng lãi/lỗ của lệnh đó, tính bằng R | `test_reward_telescopes_to_realised_pnl` |
 | 18 | Khi cắt đoạn huấn luyện, phần tương lai được ước lượng chứ không gán bằng 0 | `test_boundary_bootstraps_instead_of_zeroing_future`, `test_collect_bootstraps_from_the_pre_reset_state` |
 | 19 | Cột không khai `regime` không trôi ≥ 1σ giữa các năm của train | `test_non_regime_features_do_not_drift_across_years` |
+| 20 | Dự báo dùng cho tầng sau hay để chấm do mô hình **chưa từng học dữ liệu tại hay sau thời điểm đó** tạo ra: đáp án của nến học không chạm giai đoạn dự báo, tiền xử lý chỉ khớp trên phần học (spec 008) | `test_training_labels_never_reach_the_predicted_period`, `test_preprocessing_fits_only_on_the_training_part` |
 
 ## 12. Lệnh
 

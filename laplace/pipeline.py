@@ -129,12 +129,23 @@ def _burn_in_length(features: pd.DataFrame) -> int:
     return int(features.index.get_indexer([max(first_valid)])[0]) + 1
 
 
-def build_feature_frame(cfg: FeatureConfig | None = None,
-                        df: pd.DataFrame | None = None) -> FeatureSet:
-    """Duong ong day du: CSV tho -> FeatureSet da chia tap va khop scaler."""
-    cfg = cfg or FeatureConfig()
-    df = load_ohlcv(cfg) if df is None else df
+@dataclass
+class AssembledFeatures:
+    """Dac trung da ghep va cat burn-in, CHUA tia cot va CHUA scale.
 
+    Tach rieng de LSTM du bao (spec 008) tu tia cot va khop scaler tren phan hoc cua tung
+    vong - khop chung tren ca tap train la ro ri tuong lai vao cac vong ngoai mau.
+    """
+
+    features: pd.DataFrame
+    ohlcv: pd.DataFrame
+    signals: pd.DataFrame | None
+    bot_inputs: pd.DataFrame | None
+    burn_in: int
+    group_names: list[str]
+
+
+def assemble_features(cfg: FeatureConfig, df: pd.DataFrame) -> AssembledFeatures:
     runs = run_bots(df) if (cfg.use_bots or cfg.emit_bot_signals) else None
     blocks = build_raw_features(df, cfg, runs)
     # Khoi bot tinh cung luot (de bai kiem tra nhan qua phu luon no) nhung TACH khoi X:
@@ -151,6 +162,19 @@ def build_feature_frame(cfg: FeatureConfig | None = None,
         signals = signals.iloc[burn_in:]
     if bot_inputs is not None:
         bot_inputs = bot_inputs.iloc[burn_in:]
+    return AssembledFeatures(features, ohlcv, signals, bot_inputs, burn_in, list(blocks))
+
+
+def build_feature_frame(cfg: FeatureConfig | None = None,
+                        df: pd.DataFrame | None = None) -> FeatureSet:
+    """Duong ong day du: CSV tho -> FeatureSet da chia tap va khop scaler."""
+    cfg = cfg or FeatureConfig()
+    df = load_ohlcv(cfg) if df is None else df
+
+    a = assemble_features(cfg, df)
+    features, ohlcv, signals, bot_inputs, burn_in = (a.features, a.ohlcv, a.signals,
+                                                     a.bot_inputs, a.burn_in)
+    blocks = a.group_names
 
     split = make_split(features.index, cfg)
     if not split.train.any():

@@ -127,6 +127,7 @@ sau.
 | Front-end điều khiển config | làm sau khi LSTM chạy được |
 | **Tối ưu số nến LSTM nhìn lại** (hiện 64 nến, chọn ở spec 002, chưa thử giá trị khác) | việc cần làm — thí nghiệm khi LSTM dự báo chạy được, chấm trên valid nhiều seed |
 | Tối ưu độ dài `h_t` (hiện 64 số; thử 96, 128) | việc cần làm — cùng đợt với dòng trên |
+| **Tối ưu cửa sổ ATR**: ATR 51 nến (dùng cho R và cho mốc ±1,5 ATR của head (a)) và "1 năm" (dùng cho C) — cả hai đang chọn theo logic, chưa thử giá trị khác | việc cần làm — ghi 2026-10-01 |
 | Giới hạn rủi ro cứng, phí | làm sau cùng |
 
 ## 9. Mô hình phụ trợ: chuyển khung và học lại (đã chốt)
