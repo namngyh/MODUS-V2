@@ -113,7 +113,7 @@ tests/test_forecast.py::test_baseline_is_class_frequency_of_the_training_part
 |---|---|
 | LSTM (a) có hơn đoán theo tỷ lệ nhóm? | Trung bình 10 seed tốt hơn mốc **và** ≥ 8/10 seed tốt hơn mốc |
 | Head (c) có giúp head (a)? | Sai số (a) của bản `ac` thấp hơn bản `a` hơn 2 lần sai số chuẩn của chênh lệch giữa 10 seed |
-| Xác suất có đúng? | Báo bảng "nói X % thì xảy ra bao nhiêu %" theo 10 khoảng; **không đặt ngưỡng** — chưa có cơ sở |
+| Xác suất có đúng? | Báo bảng "nói X % thì xảy ra bao nhiêu %" theo 10 khoảng; **không đặt ngưỡng** — chưa có cơ sở. Lệch thì **không** sửa ở tầng LSTM: Meta tự hiệu chỉnh (chốt 2026-10-03) |
 
 Không chấm bằng tỷ lệ đoán đúng. Tập test: không nhìn.
 

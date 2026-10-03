@@ -76,6 +76,11 @@ học 3 năm — chất lượng đầu vào của Meta không đồng đều gi
 
 Tín hiệu bot **không bao giờ** là đầu vào của LSTM (bất biến #6), chỉ vào Meta.
 
+**Hiệu chỉnh xác suất (chốt 2026-10-03):** Meta tự hiệu chỉnh xác suất của LSTM — nhận
+xác suất thô làm đầu vào và học cách đổi nó thành xác suất đúng. **Không** thêm bước hiệu
+chỉnh (vd. nhiệt độ) ở tầng LSTM. Hệ quả: khi chấm Meta phải kiểm tra độ đúng xác suất
+**đầu ra của Meta** ("nói X % thì xảy ra ≈ X %"), vì PPO dùng thẳng con số đó.
+
 ## 5. PPO
 
 - Khung **5 phút** cho mọi tầng.
